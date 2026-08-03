@@ -14,12 +14,14 @@ class Player {
   final String name;
   final bool isLiar;
   final String assignedWord;
+  final int score;
 
   const Player({
     required this.id,
     required this.name,
     required this.isLiar,
     required this.assignedWord,
+    this.score = 0,
   });
 
   Player copyWith({
@@ -27,12 +29,14 @@ class Player {
     String? name,
     bool? isLiar,
     String? assignedWord,
+    int? score,
   }) {
     return Player(
       id: id ?? this.id,
       name: name ?? this.name,
       isLiar: isLiar ?? this.isLiar,
       assignedWord: assignedWord ?? this.assignedWord,
+      score: score ?? this.score,
     );
   }
 }

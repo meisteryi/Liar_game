@@ -88,10 +88,8 @@ class GameRoot extends ConsumerWidget {
     Widget activeScreen;
     switch (gameState.stage) {
       case GameStage.setup:
-        activeScreen = const HomeScreen();
-        break;
       case GameStage.loading:
-        activeScreen = const LoadingScreen();
+        activeScreen = const HomeScreen();
         break;
       case GameStage.cardChecking:
         activeScreen = const CardCheckScreen();

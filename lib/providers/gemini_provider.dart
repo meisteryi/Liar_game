@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import '../models/game_settings.dart';
@@ -24,38 +25,22 @@ class GeminiWordResult {
 }
 
 class GeminiService {
+  // Priority list of models authorized for the key to rotate on errors (like 503 high demand)
+  static const List<String> _fallbackModels = [
+    'gemini-3.5-flash',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'gemini-flash-latest',
+    'gemini-3.5-flash-lite',
+    'gemini-2.0-flash-lite',
+  ];
+
   Future<GeminiWordResult> generateWords({
     required String apiKey,
     required String theme,
     required GameDifficulty difficulty,
     required GameMode mode,
   }) async {
-    // We use gemini-2.5-flash which is fast and supports JSON schema
-    final model = GenerativeModel(
-      model: 'gemini-2.5-flash',
-      apiKey: apiKey,
-      generationConfig: GenerationConfig(
-        responseMimeType: 'application/json',
-        responseSchema: Schema.object(
-          properties: {
-            'target_word': Schema.string(
-              description:
-                  'The secret word for standard players (in Korean). e.g., "짜장면". Must be a single specific noun.',
-            ),
-            'alternative_word': Schema.string(
-              description:
-                  'The secret word for the Spy/Fool player in Spy Mode (in Korean). It must be closely related to target_word but different. e.g., "짬뽕" if target is "짜장면". In standard mode, this can be a similar concept too, but will act as a reference.',
-            ),
-            'hint': Schema.string(
-              description:
-                  'A hint or common category that applies to both words (in Korean). e.g., "중식 면 요리".',
-            ),
-          },
-          requiredProperties: ['target_word', 'alternative_word', 'hint'],
-        ),
-      ),
-    );
-
     String difficultyDescription = '';
     switch (difficulty) {
       case GameDifficulty.easy:
@@ -87,14 +72,51 @@ class GeminiService {
 - 결과는 JSON 형식으로 반환해야 함.
 ''';
 
-    final response = await model.generateContent([Content.text(prompt)]);
-    final text = response.text;
-    if (text == null) {
-      throw Exception('Gemini API returned empty response.');
+    Object? lastError;
+
+    for (final modelName in _fallbackModels) {
+      try {
+        final model = GenerativeModel(
+          model: modelName,
+          apiKey: apiKey,
+          generationConfig: GenerationConfig(
+            responseMimeType: 'application/json',
+            responseSchema: Schema.object(
+              properties: {
+                'target_word': Schema.string(
+                  description:
+                      'The secret word for standard players (in Korean). e.g., "짜장면". Must be a single specific noun.',
+                ),
+                'alternative_word': Schema.string(
+                  description:
+                      'The secret word for the Spy/Fool player in Spy Mode (in Korean). It must be closely related to target_word but different. e.g., "짬뽕" if target is "짜장면". In standard mode, this can be a similar concept too, but will act as a reference.',
+                ),
+                'hint': Schema.string(
+                  description:
+                      'A hint or common category that applies to both words (in Korean). e.g., "중식 면 요리".',
+                ),
+              },
+              requiredProperties: ['target_word', 'alternative_word', 'hint'],
+            ),
+          ),
+        );
+
+        final response = await model.generateContent([Content.text(prompt)]);
+        final text = response.text;
+        if (text == null) {
+          throw Exception('Model $modelName returned an empty response.');
+        }
+
+        final Map<String, dynamic> decoded = jsonDecode(text);
+        return GeminiWordResult.fromJson(decoded);
+      } catch (e) {
+        lastError = e;
+        debugPrint('Warning: Model $modelName failed: $e. Retrying with next model...');
+      }
     }
 
-    final Map<String, dynamic> decoded = jsonDecode(text);
-    return GeminiWordResult.fromJson(decoded);
+    // If we exhausted all fallback models
+    throw Exception('모든 제미나이 모델이 일시적으로 사용 불가능합니다. (마지막 오류: $lastError)');
   }
 }
 

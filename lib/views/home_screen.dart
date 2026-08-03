@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/game_settings.dart';
+import '../models/game_state.dart';
 import '../providers/game_provider.dart';
-import 'settings_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -20,24 +20,60 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
-  void _onStartPressed(String? apiKey, GameSettings currentSettings) async {
-    if (apiKey == null || apiKey.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('API 키를 먼저 등록해 주세요.'),
-          backgroundColor: Color(0xFF1E1E1E),
+  void _showWarningDialog({
+    required String title,
+    required String content,
+    VoidCallback? onConfirm,
+  }) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFFFAF6EE),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Color(0xFF1E1E1E), width: 1.5),
         ),
-      );
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const SettingsScreen()),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E1E1E)),
+        ),
+        content: Text(
+          content,
+          style: const TextStyle(color: Color(0xFF757575), height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              if (onConfirm != null) {
+                onConfirm();
+              }
+            },
+            child: const Text(
+              '확인',
+              style: TextStyle(color: Color(0xFF1E1E1E), fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onStartPressed(String? apiKey, GameSettings currentSettings) async {
+    final enteredTheme = _themeController.text.trim();
+
+    // 2. Theme check
+    if (enteredTheme.isEmpty) {
+      _showWarningDialog(
+        title: '주제 입력 필요',
+        content: '라이어 게임 진행을 위해 원하는 주제(테마)를 입력해 주세요.\n예: 과일, 음식, 영화, 스포츠 등',
       );
       return;
     }
 
     // Capture theme from controller
     ref.read(gameProvider.notifier).updateSettings(
-      currentSettings.copyWith(theme: _themeController.text.trim()),
+      currentSettings.copyWith(theme: enteredTheme),
     );
 
     try {
@@ -46,12 +82,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       debugPrint('게임 시작 중 에러 발생: $e');
       debugPrint('상세 스택트레이스: $stack');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('에러가 발생했습니다: $e'),
-            backgroundColor: const Color(0xFFD32F2F),
-            duration: const Duration(seconds: 5), // Longer display to read the error
-          ),
+        _showWarningDialog(
+          title: '에러 발생',
+          content: '제미나이 단어 생성 중 오류가 발생했습니다: $e\n\nAPI 키 상태나 네트워크 환경을 확인해 주세요.',
         );
       }
     }
@@ -74,20 +107,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       });
     }
 
-    return Scaffold(
+    final isGenerating = gameState.stage == GameStage.loading;
+
+    return Stack(
+      children: [
+        Scaffold(
       appBar: AppBar(
         title: const Text('LIAR GAME'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              );
-            },
-          ),
-        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -96,42 +122,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // API Key Status Banner if missing
-                if (apiKey == null || apiKey.isEmpty)
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const SettingsScreen()),
-                      );
-                    },
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 24),
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFDFBF7),
-                        border: Border.all(color: const Color(0xFF1E1E1E), width: 1.5),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.warning_amber_rounded, color: Color(0xFF1E1E1E)),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Gemini API 키를 등록해야 단어가 생성됩니다. (이곳을 터치해 설정)',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1E1E1E),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
                 // Player count slider/buttons
                 const Text(
                   '인원 선택',
@@ -166,6 +156,42 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           : null,
                     ),
                   ],
+                ),
+                const SizedBox(height: 24),
+
+                // Player Name Configuration List
+                const Text(
+                  '플레이어 이름 설정',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E1E1E)),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFDFBF7),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE5DFD5), width: 1.5),
+                  ),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: settings.playerCount,
+                    separatorBuilder: (context, index) => const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      final player = index < gameState.players.length ? gameState.players[index] : null;
+                      final currentName = player?.name ?? '플레이어 ${index + 1}';
+                      final score = player?.score ?? 0;
+                      return _PlayerNameInputRow(
+                        index: index,
+                        initialName: currentName.startsWith('플레이어 ') ? '' : currentName,
+                        defaultLabel: '플레이어 ${index + 1}',
+                        score: score,
+                        onChanged: (val) {
+                          ref.read(gameProvider.notifier).updatePlayerName(index, val);
+                        },
+                      );
+                    },
+                  ),
                 ),
                 const SizedBox(height: 24),
 
@@ -341,6 +367,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
+      ),
+      if (isGenerating)
+        Positioned.fill(
+          child: Material(
+            color: const Color(0xFFFAF6EE).withValues(alpha: 0.75),
+            child: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E1E1E)),
+                    strokeWidth: 3,
+                  ),
+                  SizedBox(height: 24),
+                  Text(
+                    'Gemini가 재미있는 단어를 생각하고 있어요...',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E1E1E),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -433,6 +487,114 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PlayerNameInputRow extends StatefulWidget {
+  final int index;
+  final String initialName;
+  final String defaultLabel;
+  final int score;
+  final ValueChanged<String> onChanged;
+
+  const _PlayerNameInputRow({
+    required this.index,
+    required this.initialName,
+    required this.defaultLabel,
+    required this.score,
+    required this.onChanged,
+  });
+
+  @override
+  State<_PlayerNameInputRow> createState() => _PlayerNameInputRowState();
+}
+
+class _PlayerNameInputRowState extends State<_PlayerNameInputRow> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialName);
+  }
+
+  @override
+  void didUpdateWidget(covariant _PlayerNameInputRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialName != oldWidget.initialName && _controller.text != widget.initialName) {
+      _controller.text = widget.initialName;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E1E1E),
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            '${widget.index + 1}',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFFFAF6EE),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: SizedBox(
+            height: 42,
+            child: TextField(
+              controller: _controller,
+              onChanged: widget.onChanged,
+              style: const TextStyle(fontSize: 14, color: Color(0xFF1E1E1E)),
+              decoration: InputDecoration(
+                hintText: widget.defaultLabel,
+                hintStyle: const TextStyle(color: Color(0xFFC0B9AF), fontSize: 13),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFFE5DFD5), width: 1.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: const BorderSide(color: Color(0xFF1E1E1E), width: 1.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.emoji_events_outlined, size: 16, color: Color(0xFF757575)),
+            const SizedBox(width: 4),
+            Text(
+              '${widget.score}점',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF757575),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
