@@ -14,7 +14,20 @@ class GameNotifier extends StateNotifier<GameState> {
 
   // Load API Key on startup
   Future<void> _loadInitialSettings() async {
-    final apiKey = await StorageService.getApiKey();
+    // 1. Try loading from local storage
+    var apiKey = await StorageService.getApiKey();
+
+    // 2. If not found, try loading from build-time environment variable
+    if (apiKey == null || apiKey.isEmpty) {
+      apiKey = const String.fromEnvironment('GEMINI_API_KEY');
+      if (apiKey.isEmpty) {
+        apiKey = null;
+      } else {
+        // Automatically save to local storage for future runs
+        await StorageService.saveApiKey(apiKey);
+      }
+    }
+
     state = state.copyWith(
       settings: state.settings.copyWith(apiKey: apiKey),
     );
@@ -106,7 +119,9 @@ class GameNotifier extends StateNotifier<GameState> {
         currentCheckPlayerIndex: 0,
         isCardFlipped: false,
       );
-    } catch (e) {
+    } catch (e, stack) {
+      print('Error in startGame: $e');
+      print('Stacktrace: $stack');
       // Return to setup and rethrow
       state = state.copyWith(stage: GameStage.setup);
       rethrow;

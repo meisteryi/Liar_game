@@ -42,12 +42,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     try {
       await ref.read(gameProvider.notifier).startGame();
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('게임 시작 중 에러 발생: $e');
+      debugPrint('상세 스택트레이스: $stack');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('에러가 발생했습니다: $e'),
             backgroundColor: const Color(0xFFD32F2F),
+            duration: const Duration(seconds: 5), // Longer display to read the error
           ),
         );
       }
