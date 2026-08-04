@@ -69,6 +69,8 @@ class GeminiService {
 - 명사 형태의 구체적이고 직관적인 단어여야 함.
 - 스파이 모드일 때 두 단어(target_word, alternative_word)는 반드시 동일한 범주에 속해야 함 (예: 짜장면과 짬뽕, 사과와 배, 스마트폰과 태블릿).
 - 난이도가 '어려움'일수록 두 단어의 차이가 미세하고 헷갈려야 함 (예: 카페라떼와 카푸치노).
+- 난이도가 '쉬움' 에 가까울수록 너무 구체적이지 않은, 일반적인 사람들이라면 거의 모두가 알 수 있는 단어를 제시해야 함.
+- 사용자가 입력한 카테고리 안에 포함되는 단어만을 제시해야 함. 예를 들어 입력받은 단어가 '영화' 이면, 영화와 관련된 모든 단어 중에 고르는 게 아니라, 영화 제목 중에 고르는 거임.
 - 결과는 JSON 형식으로 반환해야 함.
 ''';
 
@@ -111,7 +113,9 @@ class GeminiService {
         return GeminiWordResult.fromJson(decoded);
       } catch (e) {
         lastError = e;
-        debugPrint('Warning: Model $modelName failed: $e. Retrying with next model...');
+        debugPrint(
+          'Warning: Model $modelName failed: $e. Retrying with next model...',
+        );
       }
     }
 
