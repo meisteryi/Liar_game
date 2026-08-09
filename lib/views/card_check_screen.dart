@@ -87,7 +87,7 @@ class CardCheckScreen extends ConsumerWidget {
               // 3D Flippable Card
               GestureDetector(
                 onTap: () {
-                  if (!isFlipped) {
+                  if (!isFlipped && !gameState.isTransitioning) {
                     ref.read(gameProvider.notifier).flipCard();
                   }
                 },

@@ -50,6 +50,7 @@ class GameState {
   final List<Player> players;
   final int currentCheckPlayerIndex; // Index of the player currently checking the card
   final bool isCardFlipped;          // True when word is visible
+  final bool isTransitioning;        // True when transitioning to next player
   final int? votedPlayerId;          // ID of the player who received the most votes
   final bool? isLiarCaught;          // Null before results, True if voted player was a liar
   final String? liarGuessedWord;      // Final guess from the caught liar
@@ -64,6 +65,7 @@ class GameState {
     this.players = const [],
     this.currentCheckPlayerIndex = 0,
     this.isCardFlipped = false,
+    this.isTransitioning = false,
     this.votedPlayerId,
     this.isLiarCaught,
     this.liarGuessedWord,
@@ -79,6 +81,7 @@ class GameState {
     List<Player>? players,
     int? currentCheckPlayerIndex,
     bool? isCardFlipped,
+    bool? isTransitioning,
     int? votedPlayerId,
     bool? isLiarCaught,
     String? liarGuessedWord,
@@ -93,6 +96,7 @@ class GameState {
       players: players ?? this.players,
       currentCheckPlayerIndex: currentCheckPlayerIndex ?? this.currentCheckPlayerIndex,
       isCardFlipped: isCardFlipped ?? this.isCardFlipped,
+      isTransitioning: isTransitioning ?? this.isTransitioning,
       votedPlayerId: votedPlayerId ?? this.votedPlayerId,
       isLiarCaught: isLiarCaught ?? this.isLiarCaught,
       liarGuessedWord: liarGuessedWord ?? this.liarGuessedWord,

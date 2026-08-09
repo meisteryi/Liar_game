@@ -190,15 +190,26 @@ class GameNotifier extends StateNotifier<GameState> {
 
   // Flip/reveal the secret card
   void flipCard() {
+    if (state.isTransitioning) return;
     state = state.copyWith(isCardFlipped: true);
   }
 
   // Move to next player or start discussing if all checked
-  void nextPlayer() {
+  Future<void> nextPlayer() async {
+    if (state.isTransitioning) return;
+
     if (state.currentCheckPlayerIndex < state.players.length - 1) {
       state = state.copyWith(
-        currentCheckPlayerIndex: state.currentCheckPlayerIndex + 1,
         isCardFlipped: false,
+        isTransitioning: true,
+      );
+
+      // Wait for flip-back animation to finish (400ms)
+      await Future.delayed(const Duration(milliseconds: 400));
+
+      state = state.copyWith(
+        currentCheckPlayerIndex: state.currentCheckPlayerIndex + 1,
+        isTransitioning: false,
       );
     } else {
       state = state.copyWith(stage: GameStage.playing, isCardFlipped: false);
